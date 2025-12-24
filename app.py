@@ -7,8 +7,8 @@ URL = "https://service.dungpham.com.vn/thong-bao"
 KEYWORD = "kame01td"
 REQUIRED_TAGS = ["hệ thống", "5 sao"]
 
-BOT_TOKEN = os.environ.get("7595884145:AAHSaetDabglE8nQnL3v1VAUJAj-t8uijec")
-CHAT_ID = os.environ.get("5886715013")
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+CHAT_ID = os.environ.get("CHAT_ID")
 
 HASH_FILE = "sent.txt"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
