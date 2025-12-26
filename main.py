@@ -31,13 +31,25 @@ def send_telegram(msg):
     }, timeout=10)
 
 def fetch_notices():
+    print(">>> Fetching URL:", URL)
+
     r = requests.get(URL, headers=HEADERS, timeout=15)
+    print(">>> Status code:", r.status_code)
+    print(">>> Response length:", len(r.text))
+
     soup = BeautifulSoup(r.text, "html.parser")
+    cards = soup.select("div.card")
+    print(">>> Found cards:", len(cards))
+
     results = []
 
-    for card in soup.select("div.card"):
+    for i, card in enumerate(cards):
         text = card.get_text(" ", strip=True).lower()
         tags = [b.get_text(strip=True).lower() for b in card.select("span.badge")]
+
+        print(f"--- CARD {i}")
+        print("TEXT:", text[:200])
+        print("TAGS:", tags)
 
         results.append({
             "text": text,
