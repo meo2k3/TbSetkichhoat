@@ -48,14 +48,35 @@ def send_telegram(msg):
 def select_server(page, server_name):
     print(f">>> Selecting server: {server_name}")
 
-    page.wait_for_selector("button.ant-btn span", timeout=20000)
+    # scope đúng card "Máy chủ"
+    server_card = page.locator(
+        "div.ant-card",
+        has_text="Máy chủ"
+    )
 
-    page.locator(
+    btn = server_card.locator(
         "button.ant-btn span",
         has_text=server_name
-    ).first.click(force=True)
+    ).first
 
-    page.wait_for_timeout(1500)
+    btn.scroll_into_view_if_needed()
+    btn.click(force=True)
+
+    # chờ button active (màu tím)
+    page.wait_for_function(
+        """(name) => {
+            const spans = [...document.querySelectorAll("button.ant-btn span")];
+            const btn = spans.find(s => s.innerText.trim() === name);
+            if (!btn) return false;
+            const b = btn.closest("button");
+            return getComputedStyle(b).backgroundColor.includes("128, 90, 213");
+        }""",
+        server_name,
+        timeout=10000
+    )
+
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(1000)
 
 
 def select_category(page, category_name):
@@ -71,7 +92,8 @@ def select_category(page, category_name):
         has_text=category_name
     ).first.click(force=True)
 
-    page.wait_for_timeout(1500)
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(1000)
 
 
 # ======================
@@ -92,7 +114,6 @@ def fetch_notices():
         page.goto(URL, timeout=30000)
         page.wait_for_load_state("networkidle")
 
-        # chọn server & category
         select_server(page, SERVER_NAME)
         select_category(page, CATEGORY_NAME)
 
@@ -102,10 +123,7 @@ def fetch_notices():
             timeout=30000
         )
 
-        cards = page.query_selector_all(
-            "div[style*='border-bottom']"
-        )
-
+        cards = page.query_selector_all("div[style*='border-bottom']")
         print(">>> Cards found:", len(cards))
 
         for card in cards:
@@ -113,10 +131,8 @@ def fetch_notices():
             if not spans:
                 continue
 
-            texts = [s.inner_text().strip() for s in spans]
-            full_text = "\n".join(texts)
-
-            results.append(full_text)
+            text = "\n".join(s.inner_text().strip() for s in spans)
+            results.append(text)
 
         browser.close()
 
@@ -128,44 +144,31 @@ def fetch_notices():
 # ======================
 def main():
     print("=== START BOT ===")
-    print("BOT_TOKEN exists:", bool(BOT_TOKEN))
-    print("CHAT_ID exists:", bool(CHAT_ID))
 
     if not BOT_TOKEN or not CHAT_ID:
         print("❌ Missing Telegram config")
         return
 
-    try:
-        notices = fetch_notices()
-    except Exception as e:
-        print("❌ FETCH ERROR:", e)
-        return
-
+    notices = fetch_notices()
     print("TOTAL NOTICES:", len(notices))
 
     sent = load_sent()
-    print("SENT HASH COUNT:", len(sent))
 
-    for i, text in enumerate(notices):
-        print(f"\n--- NOTICE {i} ---")
-        print(text)
-
+    for text in notices:
         if KEYWORD.lower() not in text.lower():
             continue
 
         h = hashlib.md5(text.encode()).hexdigest()
         if h in sent:
-            print("⚠️ SKIP (already sent)")
             continue
 
         msg = (
-            f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
-            f"{text}"
+            f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n{text}"
         )
 
         send_telegram(msg)
         save_hash(h)
-        print("✅ SENT TO TELEGRAM")
+        print("✅ SENT")
 
     print("=== END BOT ===")
 
