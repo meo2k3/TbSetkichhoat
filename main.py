@@ -48,32 +48,30 @@ def send_telegram(msg):
 def select_server(page, server_name):
     print(f">>> Selecting server: {server_name}")
 
-    btn = page.locator(
+    page.wait_for_selector("button.ant-btn span", timeout=20000)
+
+    page.locator(
         "button.ant-btn span",
         has_text=server_name
-    ).first
+    ).first.click(force=True)
 
-    btn.scroll_into_view_if_needed()
-    btn.click(force=True)
-
-    # ⏳ đợi server ACTIVE (màu tím)
-    page.wait_for_selector(
-        "button.ant-btn[style*='background: rgb(128, 90, 213)'] span",
-        timeout=15000
-    )
+    page.wait_for_timeout(1500)
 
 
 def select_category(page, category_name):
     print(f">>> Selecting category: {category_name}")
 
+    page.wait_for_selector("div.ant-select-selector", timeout=20000)
     page.click("div.ant-select-selector", force=True)
+
+    page.wait_for_selector("div.ant-select-item-option-content")
 
     page.locator(
         "div.ant-select-item-option-content",
         has_text=category_name
     ).first.click(force=True)
 
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
 
 
 # ======================
@@ -94,34 +92,31 @@ def fetch_notices():
         page.goto(URL, timeout=30000)
         page.wait_for_load_state("networkidle")
 
-        # 1️⃣ chọn server
+        # chọn server & category
         select_server(page, SERVER_NAME)
-
-        # 2️⃣ chọn category
         select_category(page, CATEGORY_NAME)
 
-        # 3️⃣ đợi danh sách render LẠI
-        print(">>> Waiting for notices")
+        print(">>> Waiting for notice cards")
         page.wait_for_selector(
-            "div.ant-card-body > div[style*='border-bottom'] span.ant-typography",
-            timeout=20000
+            "div[style*='border-bottom']",
+            timeout=30000
         )
 
         cards = page.query_selector_all(
-            "div.ant-card-body > div[style*='border-bottom']"
+            "div[style*='border-bottom']"
         )
 
         print(">>> Cards found:", len(cards))
 
         for card in cards:
-            title = card.query_selector(
-                "span.ant-typography[style*='font-weight: 600']"
-            )
-            if not title:
+            spans = card.query_selector_all("span.ant-typography")
+            if not spans:
                 continue
 
-            text = title.inner_text().strip()
-            results.append(text)
+            texts = [s.inner_text().strip() for s in spans]
+            full_text = "\n".join(texts)
+
+            results.append(full_text)
 
         browser.close()
 
@@ -133,27 +128,44 @@ def fetch_notices():
 # ======================
 def main():
     print("=== START BOT ===")
+    print("BOT_TOKEN exists:", bool(BOT_TOKEN))
+    print("CHAT_ID exists:", bool(CHAT_ID))
 
     if not BOT_TOKEN or not CHAT_ID:
         print("❌ Missing Telegram config")
         return
 
-    notices = fetch_notices()
-    sent = load_sent()
+    try:
+        notices = fetch_notices()
+    except Exception as e:
+        print("❌ FETCH ERROR:", e)
+        return
 
-    for text in notices:
+    print("TOTAL NOTICES:", len(notices))
+
+    sent = load_sent()
+    print("SENT HASH COUNT:", len(sent))
+
+    for i, text in enumerate(notices):
+        print(f"\n--- NOTICE {i} ---")
+        print(text)
+
         if KEYWORD.lower() not in text.lower():
             continue
 
         h = hashlib.md5(text.encode()).hexdigest()
         if h in sent:
+            print("⚠️ SKIP (already sent)")
             continue
 
-        msg = f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n{text}"
+        msg = (
+            f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
+            f"{text}"
+        )
+
         send_telegram(msg)
         save_hash(h)
-
-        print("✅ SENT:", text)
+        print("✅ SENT TO TELEGRAM")
 
     print("=== END BOT ===")
 
