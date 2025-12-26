@@ -41,11 +41,40 @@ def fetch_notices():
             args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
         page = browser.new_page()
+        page.set_viewport_size({"width": 1280, "height": 900})
 
+        print(">>> Opening page")
         page.goto(URL, timeout=30000)
         page.wait_for_load_state("networkidle")
 
-        # đợi text thông báo xuất hiện
+        # =====================
+        # 1. CHỌN SERVER (5 SAO)
+        # =====================
+        print(">>> Selecting server: 5 sao")
+        page.wait_for_selector("button.ant-btn span")
+        page.locator(
+            "button.ant-btn span", has_text="5 sao"
+        ).first.click()
+
+        page.wait_for_timeout(1000)
+
+        # =====================
+        # 2. CHỌN DANH MỤC (Boss)
+        # =====================
+        print(">>> Opening category select")
+        page.wait_for_selector("div.ant-select-selector")
+        page.click("div.ant-select-selector")
+
+        print(">>> Selecting category: Boss")
+        page.wait_for_selector("div.ant-select-item-option-content")
+        page.locator(
+            "div.ant-select-item-option-content", has_text="Boss"
+        ).click()
+
+        # =====================
+        # 3. ĐỢI THÔNG BÁO LOAD
+        # =====================
+        print(">>> Waiting for notices")
         page.wait_for_selector(
             "div.ant-space-item span.ant-typography",
             timeout=30000
@@ -60,11 +89,10 @@ def fetch_notices():
         for el in items:
             text = el.inner_text().strip().lower()
 
-            # tag logic theo nội dung
             tags = []
-            if "[ht]" in text or "hệ thống" in text:
+            if "[ht]" in text:
                 tags.append("hệ thống")
-            if "set kích hoạt" in text or "5 sao" in text:
+            if "5 sao" in text or "set kích hoạt" in text:
                 tags.append("5 sao")
 
             results.append({
