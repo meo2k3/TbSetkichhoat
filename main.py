@@ -41,6 +41,25 @@ def send_telegram(msg):
         timeout=10
     )
 
+def select_server(page, server_name):
+    print(f">>> Force select server: {server_name}")
+
+    page.wait_for_selector("div.ant-card", timeout=30000)
+
+    page.evaluate(f"""
+        () => {{
+            const cards = Array.from(document.querySelectorAll('div.ant-card'));
+            const serverCard = cards.find(c => c.innerText.includes('Máy chủ'));
+            if (!serverCard) throw 'Server card not found';
+
+            const buttons = Array.from(serverCard.querySelectorAll('button'));
+            const btn = buttons.find(b => b.innerText.trim() === '{server_name}');
+            if (!btn) throw 'Server button not found';
+
+            btn.scrollIntoView();
+            btn.click();
+        }}
+    """)
 
 # ======================
 # MAIN
@@ -78,12 +97,9 @@ def main():
         print(">>> Wait 5s after category")
         time.sleep(5)
 
-        # 4. chọn server 5 sao trong card Máy chủ
-        print(">>> Select server:", SERVER_NAME)
-        page.locator(
-            "div.ant-card:has-text('Máy chủ') button span",
-            has_text=SERVER_NAME
-        ).click(force=True)
+        # chọn server sau
+        select_server(page, SERVER_NAME)
+        time.sleep(5)
 
         print(">>> Wait 5s after server")
         time.sleep(5)
