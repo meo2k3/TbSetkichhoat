@@ -2,6 +2,7 @@ import requests
 import hashlib
 import os
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
 URL = "https://service.dungpham.com.vn/thong-bao"
 # KEYWORD = "kame01td"
