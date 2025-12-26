@@ -30,35 +30,48 @@ def send_telegram(msg):
         "chat_id": CHAT_ID,
         "text": msg
     }, timeout=10)
-from playwright.sync_api import sync_playwright
 
 def fetch_notices():
+    results = []
+
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage"]
+        )
         page = browser.new_page()
+
         page.goto(URL, timeout=30000)
-        page.wait_for_selector("div.card", timeout=10000)
+        page.wait_for_load_state("networkidle")
 
-        cards = page.query_selector_all("div.card")
-        results = []
+        # đợi text thông báo xuất hiện
+        page.wait_for_selector(
+            "div.ant-space-item span.ant-typography",
+            timeout=30000
+        )
 
-        for card in cards:
-            text = card.inner_text().lower()
-            tags = [t.inner_text().lower()
-                    for t in card.query_selector_all("span.badge")]
+        items = page.query_selector_all(
+            "div.ant-space-item span.ant-typography"
+        )
 
-            results.append({"text": text, "tags": tags})
+        print(">>> Found notices:", len(items))
+
+        for el in items:
+            text = el.inner_text().strip().lower()
+
+            # tag logic theo nội dung
+            tags = []
+            if "[ht]" in text or "hệ thống" in text:
+                tags.append("hệ thống")
+            if "set kích hoạt" in text or "5 sao" in text:
+                tags.append("5 sao")
+
+            results.append({
+                "text": text,
+                "tags": tags
+            })
 
         browser.close()
-        return results
-        print(f"--- CARD {i}")
-        print("TEXT:", text[:200])
-        print("TAGS:", tags)
-
-        results.append({
-            "text": text,
-            "tags": tags
-        })
 
     return results
 
