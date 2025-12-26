@@ -4,7 +4,8 @@ import os
 from bs4 import BeautifulSoup
 
 URL = "https://service.dungpham.com.vn/thong-bao"
-KEYWORD = "kame01td"
+# KEYWORD = "kame01td"
+KEYWORD = "chitogejo"
 REQUIRED_TAGS = ["hệ thống", "5 sao"]
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -29,24 +30,27 @@ def send_telegram(msg):
         "chat_id": CHAT_ID,
         "text": msg
     }, timeout=10)
+from playwright.sync_api import sync_playwright
 
 def fetch_notices():
-    print(">>> Fetching URL:", URL)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(URL, timeout=30000)
+        page.wait_for_selector("div.card", timeout=10000)
 
-    r = requests.get(URL, headers=HEADERS, timeout=15)
-    print(">>> Status code:", r.status_code)
-    print(">>> Response length:", len(r.text))
+        cards = page.query_selector_all("div.card")
+        results = []
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    cards = soup.select("div.card")
-    print(">>> Found cards:", len(cards))
+        for card in cards:
+            text = card.inner_text().lower()
+            tags = [t.inner_text().lower()
+                    for t in card.query_selector_all("span.badge")]
 
-    results = []
+            results.append({"text": text, "tags": tags})
 
-    for i, card in enumerate(cards):
-        text = card.get_text(" ", strip=True).lower()
-        tags = [b.get_text(strip=True).lower() for b in card.select("span.badge")]
-
+        browser.close()
+        return results
         print(f"--- CARD {i}")
         print("TEXT:", text[:200])
         print("TAGS:", tags)
