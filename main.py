@@ -43,7 +43,7 @@ def send_telegram(msg):
 
 
 # ======================
-# MAIN LOGIC
+# MAIN
 # ======================
 def main():
     print("=== START BOT ===")
@@ -51,61 +51,68 @@ def main():
     sent = load_sent()
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox"]
+        )
         page = browser.new_page()
+        page.set_viewport_size({"width": 1280, "height": 900})
 
+        # 1. mở web
         print(">>> Open page")
         page.goto(URL, timeout=30000)
+        time.sleep(3)
 
-        # ----------------------
-        # 1. chọn danh mục
-        # ----------------------
+        # 2. mở dropdown danh mục
+        print(">>> Open category dropdown")
+        page.locator("div.ant-select-selector").first.click(force=True)
+        time.sleep(1)
+
+        # 3. chọn "Hệ thống"
         print(">>> Select category:", CATEGORY_NAME)
         page.locator(
-            "button.ant-btn span",
+            "div.ant-select-item-option-content",
             has_text=CATEGORY_NAME
-        ).first.click(force=True)
+        ).click(force=True)
 
         print(">>> Wait 5s after category")
         time.sleep(5)
 
-        # ----------------------
-        # 2. chọn server
-        # ----------------------
+        # 4. chọn server 5 sao trong card Máy chủ
         print(">>> Select server:", SERVER_NAME)
         page.locator(
-            "button.ant-btn span",
+            "div.ant-card:has-text('Máy chủ') button span",
             has_text=SERVER_NAME
-        ).first.click(force=True)
+        ).click(force=True)
 
         print(">>> Wait 5s after server")
         time.sleep(5)
 
-        # ----------------------
-        # 3. lấy nội dung thẻ
-        # ----------------------
-        print(">>> Fetch cards")
+        # 5. lấy các thông báo
+        print(">>> Fetch notices")
+        items = page.query_selector_all(
+            "div[style*='border-bottom'] span.ant-typography"
+        )
 
-        cards = page.query_selector_all("div.ant-card-body")
+        print(">>> Found items:", len(items))
 
-        print(">>> Cards found:", len(cards))
+        for i in range(0, len(items), 2):
+            title = items[i].inner_text().strip()
 
-        for i, card in enumerate(cards):
-            text = card.inner_text().strip()
-            print(f"\n--- CARD {i} ---")
-            print(text)
+            print(f"\n--- NOTICE {i//2} ---")
+            print(title)
 
-            if KEYWORD.lower() not in text.lower():
+            if KEYWORD.lower() not in title.lower():
                 continue
 
-            h = hashlib.md5(text.encode("utf-8")).hexdigest()
+            h = hashlib.md5(title.encode("utf-8")).hexdigest()
             if h in sent:
                 print("⚠️ Already sent")
                 continue
 
             msg = (
                 f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
-                f"{text}"
+                f"{title}"
             )
 
             send_telegram(msg)
