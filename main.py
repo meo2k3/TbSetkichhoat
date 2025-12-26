@@ -64,14 +64,15 @@ def select_server(page, server_name):
 
     # chờ button active (màu tím)
     page.wait_for_function(
-        """(name) => {
+        """
+        () => {
             const spans = [...document.querySelectorAll("button.ant-btn span")];
-            const btn = spans.find(s => s.innerText.trim() === name);
+            const btn = spans.find(s => s.innerText.trim() === "5 sao");
             if (!btn) return false;
             const b = btn.closest("button");
             return getComputedStyle(b).backgroundColor.includes("128, 90, 213");
-        }""",
-        server_name,
+        }
+        """,
         timeout=10000
     )
 
