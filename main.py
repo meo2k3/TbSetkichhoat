@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 URL = "https://service.dungpham.com.vn/thong-bao"
 
 SERVER_NAME = "5 sao"        # server cần theo dõi
-CATEGORY_NAME = "Boss"       # danh mục
+CATEGORY_NAME = "Hệ Thống"       # danh mục
 
 KEYWORD = "chitogejo"        # keyword cần match
 REQUIRED_TAGS = ["hệ thống", "5 sao"]
