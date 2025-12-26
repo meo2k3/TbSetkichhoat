@@ -10,7 +10,7 @@ URL = "https://service.dungpham.com.vn/thong-bao"
 
 SERVER_NAME = "5 sao"
 CATEGORY_NAME = "Hệ thống"
-KEYWORD = "chitogejo"
+KEYWORD = "chitogejo"   # keyword cần lọc
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -37,7 +37,11 @@ def send_telegram(msg):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     requests.post(
         url,
-        data={"chat_id": CHAT_ID, "text": msg},
+        data={
+            "chat_id": CHAT_ID,
+            "text": msg,
+            "disable_web_page_preview": True
+        },
         timeout=10
     )
 
@@ -48,7 +52,6 @@ def send_telegram(msg):
 def select_server(page, server_name):
     print(f">>> Selecting server: {server_name}")
 
-    # scope đúng card "Máy chủ"
     server_card = page.locator(
         "div.ant-card",
         has_text="Máy chủ"
@@ -62,39 +65,29 @@ def select_server(page, server_name):
     btn.scroll_into_view_if_needed()
     btn.click(force=True)
 
-    # chờ button active (màu tím)
-    page.wait_for_function(
-        """
-        () => {
-            const spans = [...document.querySelectorAll("button.ant-btn span")];
-            const btn = spans.find(s => s.innerText.trim() === "5 sao");
-            if (!btn) return false;
-            const b = btn.closest("button");
-            return getComputedStyle(b).backgroundColor.includes("128, 90, 213");
-        }
-        """,
-        timeout=10000
-    )
-
+    # đợi data reload
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
 
 
 def select_category(page, category_name):
     print(f">>> Selecting category: {category_name}")
 
-    page.wait_for_selector("div.ant-select-selector", timeout=20000)
-    page.click("div.ant-select-selector", force=True)
+    category_card = page.locator(
+        "div.ant-card",
+        has_text="Danh mục"
+    )
 
-    page.wait_for_selector("div.ant-select-item-option-content")
-
-    page.locator(
-        "div.ant-select-item-option-content",
+    btn = category_card.locator(
+        "button.ant-btn span",
         has_text=category_name
-    ).first.click(force=True)
+    ).first
+
+    btn.scroll_into_view_if_needed()
+    btn.click(force=True)
 
     page.wait_for_load_state("networkidle")
-    page.wait_for_timeout(1000)
+    page.wait_for_timeout(1500)
 
 
 # ======================
@@ -108,6 +101,7 @@ def fetch_notices():
             headless=True,
             args=["--no-sandbox", "--disable-dev-shm-usage"]
         )
+
         page = browser.new_page()
         page.set_viewport_size({"width": 1280, "height": 900})
 
@@ -115,25 +109,36 @@ def fetch_notices():
         page.goto(URL, timeout=30000)
         page.wait_for_load_state("networkidle")
 
+        # 1. chọn server
         select_server(page, SERVER_NAME)
+
+        # 2. chọn category
         select_category(page, CATEGORY_NAME)
 
+        # 3. đợi cards render
         print(">>> Waiting for notice cards")
         page.wait_for_selector(
-            "div[style*='border-bottom']",
+            "div.ant-card-body",
             timeout=30000
         )
 
-        cards = page.query_selector_all("div[style*='border-bottom']")
-        print(">>> Cards found:", len(cards))
+        cards = page.query_selector_all("div.ant-card-body")
+
+        print(f">>> Cards found: {len(cards)}")
 
         for card in cards:
             spans = card.query_selector_all("span.ant-typography")
             if not spans:
                 continue
 
-            text = "\n".join(s.inner_text().strip() for s in spans)
-            results.append(text)
+            text = "\n".join(
+                s.inner_text().strip()
+                for s in spans
+                if s.inner_text().strip()
+            )
+
+            if text:
+                results.append({"text": text})
 
         browser.close()
 
@@ -145,31 +150,46 @@ def fetch_notices():
 # ======================
 def main():
     print("=== START BOT ===")
+    print("BOT_TOKEN exists:", bool(BOT_TOKEN))
+    print("CHAT_ID exists:", bool(CHAT_ID))
 
     if not BOT_TOKEN or not CHAT_ID:
         print("❌ Missing Telegram config")
         return
 
-    notices = fetch_notices()
+    try:
+        notices = fetch_notices()
+    except Exception as e:
+        print("❌ FETCH ERROR:", e)
+        return
+
     print("TOTAL NOTICES:", len(notices))
 
     sent = load_sent()
+    print("SENT HASH COUNT:", len(sent))
 
-    for text in notices:
+    for i, n in enumerate(notices):
+        text = n["text"]
+        print(f"\n--- NOTICE {i} ---")
+        print(text)
+
+        # so sánh keyword
         if KEYWORD.lower() not in text.lower():
             continue
 
-        h = hashlib.md5(text.encode()).hexdigest()
+        h = hashlib.md5(text.encode("utf-8")).hexdigest()
         if h in sent:
+            print("⚠️ SKIP (already sent)")
             continue
 
         msg = (
-            f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n{text}"
+            f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
+            f"{text}"
         )
 
         send_telegram(msg)
         save_hash(h)
-        print("✅ SENT")
+        print("✅ SENT TO TELEGRAM")
 
     print("=== END BOT ===")
 
