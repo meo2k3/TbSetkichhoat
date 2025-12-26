@@ -8,11 +8,9 @@ from playwright.sync_api import sync_playwright
 # ======================
 URL = "https://service.dungpham.com.vn/thong-bao"
 
-SERVER_NAME = "5 sao"        # server cần theo dõi
-CATEGORY_NAME = "Hệ Thống"       # danh mục
-
-KEYWORD = "chitogejo"        # keyword cần match
-REQUIRED_TAGS = ["hệ thống", "5 sao"]
+SERVER_NAME = "5 sao"
+CATEGORY_NAME = "Hệ thống"   # ⚠ unicode chuẩn
+KEYWORD = "chitogejo"
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -60,7 +58,7 @@ def select_server(page, server_name):
     btn.scroll_into_view_if_needed()
     btn.click(force=True)
 
-    page.wait_for_timeout(1200)
+    page.wait_for_timeout(1500)
 
 
 def select_category(page, category_name):
@@ -76,7 +74,7 @@ def select_category(page, category_name):
         has_text=category_name
     ).first.click(force=True)
 
-    page.wait_for_timeout(1200)
+    page.wait_for_timeout(1500)
 
 
 # ======================
@@ -103,31 +101,30 @@ def fetch_notices():
         # 2. chọn category
         select_category(page, CATEGORY_NAME)
 
-        # 3. đợi thông báo render
-        print(">>> Waiting for notices")
+        # 3. đợi danh sách thông báo render
+        print(">>> Waiting for notice cards")
         page.wait_for_selector(
-            "div.ant-space-item span.ant-typography",
+            "div.ant-card-body > div[style*='border-bottom']",
             timeout=30000
         )
 
-        items = page.query_selector_all(
-            "div.ant-space-item span.ant-typography"
+        cards = page.query_selector_all(
+            "div.ant-card-body > div[style*='border-bottom']"
         )
 
-        print(">>> Found notices:", len(items))
+        print(">>> Found cards:", len(cards))
 
-        for el in items:
-            text = el.inner_text().strip().lower()
+        for card in cards:
+            title_el = card.query_selector(
+                "span.ant-typography[style*='font-weight: 600']"
+            )
+            if not title_el:
+                continue
 
-            tags = []
-            if "[ht]" in text or "hệ thống" in text:
-                tags.append("hệ thống")
-            if "5 sao" in text or "set kích hoạt" in text:
-                tags.append("5 sao")
+            title = title_el.inner_text().strip()
 
             results.append({
-                "text": text,
-                "tags": tags
+                "text": title
             })
 
         browser.close()
@@ -159,26 +156,23 @@ def main():
     print("SENT HASH COUNT:", len(sent))
 
     for i, n in enumerate(notices):
+        text = n["text"]
+        text_lower = text.lower()
+
         print(f"\n--- NOTICE {i} ---")
-        print("TEXT:", n["text"][:200])
-        print("TAGS:", n["tags"])
-        print("KEYWORD MATCH:", KEYWORD in n["text"])
-        print("REQUIRED TAGS OK:",
-              all(tag in n["tags"] for tag in REQUIRED_TAGS))
+        print(text)
 
-        if KEYWORD not in n["text"]:
-            continue
-        if not all(tag in n["tags"] for tag in REQUIRED_TAGS):
+        if KEYWORD.lower() not in text_lower:
             continue
 
-        h = hashlib.md5(n["text"].encode()).hexdigest()
+        h = hashlib.md5(text.encode()).hexdigest()
         if h in sent:
             print("⚠️ SKIP (already sent)")
             continue
 
         msg = (
             f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
-            f"{n['text']}"
+            f"{text}"
         )
 
         send_telegram(msg)
