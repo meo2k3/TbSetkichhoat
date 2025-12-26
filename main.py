@@ -11,7 +11,7 @@ URL = "https://service.dungpham.com.vn/thong-bao"
 
 CATEGORY_NAME = "Hệ thống"
 SERVER_NAME = "5 sao"
-KEYWORD = "chitogejo"
+KEYWORD = "kame01td"
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
