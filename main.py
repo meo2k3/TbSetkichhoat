@@ -11,7 +11,7 @@ URL = "https://service.dungpham.com.vn/thong-bao"
 
 CATEGORY_NAME = "Hệ thống"
 SERVER_NAME = "5 sao"
-KEYWORD = "kame01td"
+KEYWORD = "huydaden9z"
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
@@ -104,31 +104,42 @@ def main():
         print(">>> Wait 5s after server")
         time.sleep(5)
 
-        # 5. lấy các thông báo
+        # 5. lấy các thẻ thông báo (block cha)
         print(">>> Fetch notices")
-        items = page.query_selector_all(
-            "div[style*='border-bottom'] span.ant-typography"
+        cards = page.query_selector_all(
+            "div[style*='border-bottom'][style*='padding: 24px']"
         )
 
-        print(">>> Found items:", len(items))
+        print(">>> Cards found:", len(cards))
 
-        for i in range(0, len(items), 2):
-            title = items[i].inner_text().strip()
-
-            print(f"\n--- NOTICE {i//2} ---")
-            print(title)
-
-            if KEYWORD.lower() not in title.lower():
+        for i, card in enumerate(cards):
+            spans = card.query_selector_all("span.ant-typography")
+            if len(spans) < 2:
                 continue
 
-            h = hashlib.md5(title.encode("utf-8")).hexdigest()
+            content = spans[0].inner_text().strip()
+            time_text = spans[1].inner_text().strip()
+
+            print(f"\n--- NOTICE {i} ---")
+            print(content)
+            print(time_text)
+
+            # so keyword
+            if KEYWORD.lower() not in content.lower():
+                continue
+
+            h = hashlib.md5(
+                (content + time_text).encode("utf-8")
+            ).hexdigest()
+
             if h in sent:
                 print("⚠️ Already sent")
                 continue
 
             msg = (
                 f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
-                f"{title}"
+                f"{content}\n\n"
+                f"🕒 {time_text}"
             )
 
             send_telegram(msg)
