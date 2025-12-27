@@ -126,7 +126,7 @@ def main():
             # LẤY TỪ ĐẦU ĐẾN NGÀY + GIỜ
             # "Thời gian xuất hiện · 27/12/2025 - 09:20:00 - Vừa cập nhật"
             # -> "Thời gian xuất hiện · 27/12/2025 - 09:20:00"
-            time_text = raw_time.split(" - ", 2)[0]
+            time_text = raw_time.split(" - ", 1)[0]
 
             print(f"\n--- NOTICE {i} ---")
             print(content)
