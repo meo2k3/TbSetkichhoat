@@ -108,53 +108,56 @@ def main():
         time.sleep(5)
 
         # 4. Lấy thẻ thông báo
-        print(">>> Fetch notices")
-        cards = page.query_selector_all(
-            "div[style*='border-bottom'][style*='padding: 24px']"
-        )
-
-        print(">>> Cards found:", len(cards))
-
-        for i, card in enumerate(cards):
-            spans = card.query_selector_all("span.ant-typography")
-            if len(spans) < 2:
-                continue
-
-            content = spans[0].inner_text().strip()
-            raw_time = spans[1].inner_text().strip()
-
-            # LẤY TỪ ĐẦU ĐẾN NGÀY + GIỜ
-            # "Thời gian xuất hiện · 27/12/2025 - 09:20:00 - Vừa cập nhật"
-            # -> "Thời gian xuất hiện · 27/12/2025 - 09:20:00"
-            time_text = raw_time.rsplit(" - ", 1)[0]
-
-            print(f"\n--- NOTICE {i} ---")
-            print(content)
-            print(time_text)
-
-            # So keyword
-            if KEYWORD.lower() not in content.lower():
-                continue
-
-            # Message gửi Telegram
-            msg = (
-                f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
-                f"{content}\n\n"
-                f"🕒 {time_text}"
+        while True:
+            print(">>> Fetch notices")
+            cards = page.query_selector_all(
+                "div[style*='border-bottom'][style*='padding: 24px']"
             )
-
-            # HASH THEO MESSAGE (CHỐNG GỬI TRÙNG)
-            h = hashlib.md5(msg.encode("utf-8")).hexdigest()
-
-            if h in sent:
-                print("⚠️ Already sent")
-                continue
-
-            send_telegram(msg)
-            save_hash(h)
-            sent.add(h)
-
-            print("✅ SENT")
+    
+            print(">>> Cards found:", len(cards))
+    
+            for i, card in enumerate(cards):
+                spans = card.query_selector_all("span.ant-typography")
+                if len(spans) < 2:
+                    continue
+    
+                content = spans[0].inner_text().strip()
+                raw_time = spans[1].inner_text().strip()
+    
+                # LẤY TỪ ĐẦU ĐẾN NGÀY + GIỜ
+                # "Thời gian xuất hiện · 27/12/2025 - 09:20:00 - Vừa cập nhật"
+                # -> "Thời gian xuất hiện · 27/12/2025 - 09:20:00"
+                time_text = raw_time.rsplit(" - ", 1)[0]
+    
+                print(f"\n--- NOTICE {i} ---")
+                print(content)
+                print(time_text)
+    
+                # So keyword
+                if KEYWORD.lower() not in content.lower():
+                    continue
+    
+                # Message gửi Telegram
+                msg = (
+                    f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
+                    f"{content}\n\n"
+                    f"🕒 {time_text}"
+                )
+    
+                # HASH THEO MESSAGE (CHỐNG GỬI TRÙNG)
+                h = hashlib.md5(msg.encode("utf-8")).hexdigest()
+    
+                if h in sent:
+                    print("⚠️ Already sent")
+                    continue
+    
+                send_telegram(msg)
+                save_hash(h)
+                sent.add(h)
+    
+                print("✅ SENT")
+            print("⏳ Sleep 10 minutes...\n")
+            page.wait_for_timeout(30_000)  # 10 phút
 
         browser.close()
 
