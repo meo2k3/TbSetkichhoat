@@ -37,9 +37,13 @@ def save_hash(h):
 def send_telegram(msg):
     requests.post(
         f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        data={"chat_id": CHAT_ID, "text": msg},
+        data={
+            "chat_id": CHAT_ID,
+            "text": msg
+        },
         timeout=10
     )
+
 
 def select_server(page, server_name):
     print(f">>> Force select server: {server_name}")
@@ -50,16 +54,17 @@ def select_server(page, server_name):
         () => {{
             const cards = Array.from(document.querySelectorAll('div.ant-card'));
             const serverCard = cards.find(c => c.innerText.includes('Máy chủ'));
-            if (!serverCard) throw 'Server card not found';
+            if (!serverCard) return;
 
             const buttons = Array.from(serverCard.querySelectorAll('button'));
             const btn = buttons.find(b => b.innerText.trim() === '{server_name}');
-            if (!btn) throw 'Server button not found';
+            if (!btn) return;
 
             btn.scrollIntoView();
             btn.click();
         }}
     """)
+
 
 # ======================
 # MAIN
@@ -77,17 +82,16 @@ def main():
         page = browser.new_page()
         page.set_viewport_size({"width": 1280, "height": 900})
 
-        # 1. mở web
+        # 1. Mở trang
         print(">>> Open page")
         page.goto(URL, timeout=30000)
         time.sleep(3)
 
-        # 2. mở dropdown danh mục
+        # 2. Chọn danh mục
         print(">>> Open category dropdown")
         page.locator("div.ant-select-selector").first.click(force=True)
         time.sleep(1)
 
-        # 3. chọn "Hệ thống"
         print(">>> Select category:", CATEGORY_NAME)
         page.locator(
             "div.ant-select-item-option-content",
@@ -97,14 +101,13 @@ def main():
         print(">>> Wait 5s after category")
         time.sleep(5)
 
-        # chọn server sau
+        # 3. Chọn server
         select_server(page, SERVER_NAME)
-        time.sleep(5)
 
         print(">>> Wait 5s after server")
         time.sleep(5)
 
-        # 5. lấy các thẻ thông báo (block cha)
+        # 4. Lấy thẻ thông báo
         print(">>> Fetch notices")
         cards = page.query_selector_all(
             "div[style*='border-bottom'][style*='padding: 24px']"
@@ -118,29 +121,34 @@ def main():
                 continue
 
             content = spans[0].inner_text().strip()
-            time_text = spans[1].inner_text().strip()
+            raw_time = spans[1].inner_text().strip()
+
+            # LẤY TỪ ĐẦU ĐẾN NGÀY + GIỜ
+            # "Thời gian xuất hiện · 27/12/2025 - 09:20:00 - Vừa cập nhật"
+            # -> "Thời gian xuất hiện · 27/12/2025 - 09:20:00"
+            time_text = raw_time.split(" - ", 2)[0]
 
             print(f"\n--- NOTICE {i} ---")
             print(content)
             print(time_text)
 
-            # so keyword
+            # So keyword
             if KEYWORD.lower() not in content.lower():
                 continue
 
-            h = hashlib.md5(
-                (content + time_text).encode("utf-8")
-            ).hexdigest()
-
-            if h in sent:
-                print("⚠️ Already sent")
-                continue
-
+            # Message gửi Telegram
             msg = (
                 f"🔔 THÔNG BÁO {SERVER_NAME.upper()} – {CATEGORY_NAME}\n\n"
                 f"{content}\n\n"
                 f"🕒 {time_text}"
             )
+
+            # HASH THEO MESSAGE (CHỐNG GỬI TRÙNG)
+            h = hashlib.md5(msg.encode("utf-8")).hexdigest()
+
+            if h in sent:
+                print("⚠️ Already sent")
+                continue
 
             send_telegram(msg)
             save_hash(h)
