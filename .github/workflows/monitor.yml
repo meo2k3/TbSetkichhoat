@@ -2,7 +2,8 @@ name: Monitor Website
 
 on:
   workflow_dispatch:
-
+schedule:
+    - cron: "0 */6 * * *"
 jobs:
   check:
     runs-on: ubuntu-latest
