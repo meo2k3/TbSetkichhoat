@@ -3,7 +3,7 @@ name: Monitor Website
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 */12 * * *"   # chạy mỗi 6 tiếng (UTC)
+    - cron: "0 */6 * * *"   # chạy mỗi 6 tiếng (UTC)
 
 jobs:
   check:
