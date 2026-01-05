@@ -3,7 +3,7 @@ name: Monitor Website
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 0 * * 0"   # chạy lại vào chủ nhật hằng tuần (UTC)
+    - cron: "0 0 * * *" # chạy lại 48h
 
 jobs:
   check:
