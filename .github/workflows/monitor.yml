@@ -2,6 +2,8 @@ name: Monitor Website
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 */20 * * *"   # mỗi 20 tiếng (UTC)
 
 jobs:
   check:
